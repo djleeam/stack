@@ -50,15 +50,33 @@ variable "environment" {
   description = "Environment tag, e.g prod"
 }
 
-module "ami" {
-  source        = "github.com/terraform-community-modules/tf_aws_ubuntu_ami/ebs"
-  region        = "${var.region}"
-  distribution  = "trusty"
-  instance_type = "${var.instance_type}"
+variable "ami_name_pattern" {
+  default = "ubuntu/images/hvm-ssd/ubuntu-xenial-16.04-amd64-server-*"
+  description = "The name filter to use in data.aws_ami"
+}
+variable "ami_publisher" {
+  default = "099720109477" # Canonical
+  description = "The AWS account ID of the AMI publisher"
+}
+
+data "aws_ami" "bastion_ami" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["${var.ami_name_pattern}"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["${var.ami_publisher}"]
 }
 
 resource "aws_instance" "bastion" {
-  ami                    = "${module.ami.ami_id}"
+  ami                    = "${data.aws_ami.bastion_ami.id}"
   source_dest_check      = false
   instance_type          = "${var.instance_type}"
   subnet_id              = "${var.subnet_id}"
